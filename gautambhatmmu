@@ -1,0 +1,147 @@
+#!/bin/bash
+
+#Gautam Bhat - AAA0085
+
+echo "Welcome to the Music Management Utility, $USER!"
+echo "                                       (c) 2014"
+
+function search(){
+	case $2 in
+		p)	count=`grep -c -i ".*|.*$1.*|.*" infolist.mmufile`; 
+			echo "$count result(s) matching $1 in $2";
+			printf "\n\n";
+			if [[ $count -gt 0 ]]
+			then
+				grep -n -i ".*|.*$1.*|.*" infolist.mmufile | cut -d "|" -f1; 
+				echo -n "Enter line number(line id, column 1) of file you want to play: "; 
+				read lineNumber; 
+				randomplay=`head -n$lineNumber infolist.mmufile | tail -n1 | cut -d "|" -f1`; 					echo -n "play (p) or open(o)?";
+				read playopen;
+				if [[ $playopen == "o" ]]
+				then
+					nautilus "$randomplay"; 
+				else
+					vlc "$randomplay";
+				fi
+			fi;;
+
+		a)	count=`grep -c -i ".*|.*|.*$1.*" infolist.mmufile`; 
+			echo "$count result(s) matching $1 in $2";
+			printf "\n\n";
+			if [[ $count -gt 0 ]]
+			then
+				grep -n -i ".*|.*|.*$1.*" infolist.mmufile | cut -d "|" -f1;
+				echo -n "Enter line number(line id, column 1) of file you want to play: "; 
+				read lineNumber;
+				randomplay=`head -n$lineNumber infolist.mmufile | tail -n1 | cut -d "|" -f1`;
+				echo -n "play (p) or open(o)?";
+				read playopen;
+				if [[ $playopen == "o" ]]
+				then
+					nautilus "$randomplay"; 
+				else
+					vlc "$randomplay";
+				fi
+			fi;;
+
+		k)	grep -i ".*$1.*" playlist.mmufile > tempSearch.txt;
+			numLines=`wc -l tempSearch.txt | cut -d " " -f1`; 
+			if [[ numLines -eq 0 ]]
+			then
+				echo "Nothing matched your search query..."
+			else 
+				grep -n "" tempSearch.txt; 
+				echo -n "Enter song number to play...: "; 
+				read numberLine; 
+				playSong=`head -n$numberLine tempSearch.txt | tail -n1`;
+				echo -n "play (p) or open(o)?";
+				read playopen;
+				if [[ $playopen == "o" ]]
+				then
+					nautilus "$playSong"; 
+				else
+					vlc "$playSong";
+				fi
+			fi;;
+
+
+		* )	echo "Invalid choice!";;
+	esac
+
+}
+
+function genMediaInfo(){
+	if [[ -e infolist.mmufile ]]
+	then
+		printf "\t\t\t removed infolist.mmufile"
+		rm infolist.mmufile;
+	fi
+	while read line
+	do
+		mediainfo "$line" > temp1.tempfile;
+		performer=`grep -i "performer" temp1.tempfile | cut -d ":" -f2 | cut -c 2- | head -n1`;
+		echo "performer=$performer";
+		album=`grep -i "album" temp1.tempfile | cut -d ":" -f2 | cut -c 2- | head -n1`;
+		echo "album=$album";
+		echo "name=$line";
+		echo "$line|$performer|$album" >> infolist.mmufile;
+	done < playlist.mmufile
+}
+
+
+if [[ ! -e ~/playlist.mmufile ]]
+then
+	echo "You don't have a playlist! Creating playlist..."
+	ls */*.mp3 > ~/playlist.mmufile
+	genMediaInfo
+fi
+
+exitVarCheck=0
+
+while [[ $exitVarCheck -eq 0 ]]
+do
+
+	echo -n "Enter Your Choice(scan/show/view/random/play/search/delete/quit/exit):"
+	read choice
+	case $choice in
+		exit|quit) let exitVarCheck=1;;
+
+		scan)	ls */*.mp3 > ~/playlist.mmufile;
+			genMediaInfo;;
+
+		show)	grep -n "" playlist.mmufile;;
+
+		random)	sizeLine=`wc -l playlist.mmufile | cut -d " " -f1`;
+			gen=$(( (RANDOM % $sizeLine ) + 1 ));
+			randomplay=`head -n$gen playlist.mmufile | tail -n1`;
+			vlc "$randomplay";;
+		
+		play)	grep -n "" playlist.mmufile;
+			echo -n "Enter line number of file to play from playlist: ";
+			read lineNumber;
+			randomplay=`head -n$lineNumber playlist.mmufile | tail -n1`; vlc "$randomplay";;
+
+		delete)	grep -n "" playlist.mmufile;
+			echo -n "Enter line number of file to delete from playlist: ";
+			read lineNumber;
+			top=$(( $lineNumber-1 ));
+			sizeLine=`wc -l playlist.mmufile | cut -d " " -f1`;
+			bot=$(( $sizeLine-$lineNumber ));
+			head -n$top playlist.mmufile > tempfile.temp;
+			tail -n$bot playlist.mmufile >> tempfile.temp;
+			mv tempfile.temp playlist.mmufile;
+			grep -n "" playlist.mmufile ;;
+	
+		search)	printf "Search by :\nPerformer - p\tAlbum - a\tKeyword - k\nEnter Search Criterion : ";
+			read criterion;
+			echo -n "Enter Search term : ";
+			read searchTerm; search $searchTerm $criterion;;
+		
+		view) 	echo "Opening in explorer...";
+			xdg-open ./Music;;
+
+		* ) 	echo "Invalid choice!";
+	esac
+done
+exit
+
